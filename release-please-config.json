@@ -1,0 +1,9 @@
+{
+  "release-type": "simple",
+  "separate-pull-requests": true,
+  "sequential-calls": true,
+
+  "packages": {
+    ".": {}
+  }
+}
