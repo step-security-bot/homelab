@@ -26,6 +26,7 @@ lint:
         - markdownlint
       paths:
         - CHANGELOG.md
+        - containers/dhcpd/CHANGELOG.md
 
 runtimes:
   enabled:
