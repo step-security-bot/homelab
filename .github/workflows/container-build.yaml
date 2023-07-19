@@ -1,0 +1,397 @@
+name: Container Build
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: path to build container form
+        required: true
+        type: string
+      release:
+        description: release information
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  context:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      container: ${{ steps.result.outputs.container }}
+      image: ${{ steps.result.outputs.image }}
+      images: ${{ steps.result.outputs.images }}
+      labels: ${{ steps.result.outputs.labels }}
+      annotations: ${{ steps.result.outputs.annotations }}
+      version: ${{ steps.result.outputs.version }}
+
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          sparse-checkout: |
+            ${{ inputs.path }}
+          fetch-depth: 0
+      - uses: xom9ikk/dotenv@v2.2.0
+        with:
+          path: ${{ inputs.path }}
+          load-mode: skip
+      - run: |
+
+          # Set container value
+          echo "container=${CONTAINER:=${BUILD_PATH##*/}}" >> "$GITHUB_OUTPUT"
+
+          GHCR_PACKAGES=$(echo "ghcr.io/${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+
+          # Define image/images
+          IMAGES="$(mktemp)"
+          cat <<EOF | grep -v "^$" | awk -F '=' '!seen[$1]++' > "$IMAGES"
+          $(echo "${IMAGE_IMAGES}")
+          ${GHCR_PACKAGES}/${CONTAINER}
+          EOF
+
+          echo "image=$(cat ${IMAGES} | head -1)" >> "$GITHUB_OUTPUT"
+
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          cat << EOF >> "$GITHUB_OUTPUT"
+          images<<$EOF
+          $(cat ${IMAGES})
+          $EOF
+          EOF
+
+          # Define annotations
+          ANNOTATIONS="$(mktemp)"
+          cat <<EOF | grep -v "^$" | grep -v "^.*=$" | awk -F '=' '!seen[$1]++' > "$ANNOTATIONS"
+          $(echo "${IMAGE_ANNOTATIONS}")
+          org.opencontainers.image.title=${IMAGE_TITLE:=${CONTAINER}}
+          org.opencontainers.image.description=${IMAGE_DESCRIPTION:-${IMAGE_TITLE}}
+          org.opencontainers.image.source=${IMAGE_SOURCE:=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/${BUILD_PATH}}
+          org.opencontainers.image.url=${IMAGE_URL:-${IMAGE_SOURCE}}
+          org.opencontainers.image.documentation=${IMAGE_DOCUMENTATION}
+          org.opencontainers.image.revision=${GITHUB_SHA}
+          org.opencontainers.image.version=${VERSION}
+          org.opencontainers.image.license=${IMAGE_LICENSE}
+          EOF
+
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          cat << EOF >> "$GITHUB_OUTPUT"
+          annotations<<$EOF
+          $(cat ${ANNOTATIONS})
+          $EOF
+          EOF
+
+          # Define labels
+          LABELS="$(mktemp)"
+          cat <<EOF | grep -v "^$" | grep -v "^.*=$" | awk -F '=' '!seen[$1]++' > "$LABELS"
+          $(echo ${IMAGE_LABELS})
+          $(cat ${ANNOTATIONS})
+          EOF
+
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          cat << EOF >> "$GITHUB_OUTPUT"
+          labels<<$EOF
+          $(cat ${LABELS})
+          $EOF
+          EOF
+
+          # Define version
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+        id: result
+        env:
+          BUILD_PATH: ${{ inputs.path }}
+          VERSION: ${{ inputs.release != '' && fromJSON(inputs.release).version || '' }}
+
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    if: ${{ !contains(fromJSON('["pull_request","pull_request_target"]'),github.event_name) }}
+
+    needs:
+      - context
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm/v6
+          - linux/arm/v7
+          - linux/arm64
+
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          sparse-checkout: |
+            ${{ inputs.path }}
+          fetch-depth: 0
+      - uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
+      - uses: docker/metadata-action@818d4b7b91585d195f67373fd9cb0332e31a7175 # v4.6.0
+        id: metadata
+        with:
+          images: |
+            ${{ needs.context.outputs.image }}
+          labels: |
+            ${{ needs.context.outputs.labels }}
+      - uses: docker/setup-buildx-action@4c0219f9ac95b02789c1075625400b2acbff50b1 # v2.9.1
+      - uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
+        id: build
+        with:
+          context: ${{ inputs.path }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          outputs: type=image,name=${{ needs.context.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+      - uses: cloudposse/github-action-matrix-outputs-write@928e2a2d3d6ae4eb94010827489805c17c81181f # 0.4.2
+        with:
+          matrix-step-name: ${{ github.job }}
+          matrix-key: ${{ matrix.platform }}
+          outputs: |-
+            digest: ${{ steps.build.outputs.digest }}
+
+  digests:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-and-push
+
+    permissions:
+      contents: read
+
+    outputs:
+      digests: ${{ steps.results.outputs.result }}
+
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: cloudposse/github-action-matrix-outputs-read@ea1c28d66c34b8400391ed74d510f66abc392d5e # 0.1.1
+        id: digests
+        with:
+          matrix-step-name: build-and-push
+      - uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        id: results
+        env:
+          DIGESTS: ${{ steps.digests.outputs.result }}
+        with:
+          script: |
+            const digests=JSON.parse(process.env.DIGESTS);
+
+            var results = {};
+
+            Object.keys(digests).forEach(function(key) {
+              Object.keys(digests[key]).forEach(function(matrix) {
+                let result = matrix.split('_').reduce(
+                  function (object,currentKey,position,keys) {
+
+                      if (!(currentKey in object)) {
+                        object[currentKey] = {};
+                      }
+                      return object[currentKey];
+                    },
+                    results );
+                result[key]=digests[key][matrix];
+              });
+            });
+
+            return results;
+
+  manifest:
+    runs-on: ubuntu-latest
+
+    needs:
+      - context
+      - digests
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image: ${steps.results.outputs.image}
+
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: docker/metadata-action@818d4b7b91585d195f67373fd9cb0332e31a7175 # v4.6.0
+        id: metadata
+        with:
+          images: |
+            ${{ needs.context.outputs.images }}
+          labels: |
+            ${{ needs.context.outputs.labels }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.context.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.context.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.context.outputs.version }}
+            type=raw,value=${{ github.sha }}
+            type=edge,branch=main
+      - uses: docker/setup-buildx-action@4c0219f9ac95b02789c1075625400b2acbff50b1 # v2.9.1
+      - uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        id: results
+        env:
+          DIGESTS: ${{ needs.digests.outputs.digests }}
+          ANNOTATIONS: ${{ needs.context.outputs.annotations }}
+        with:
+          script: |
+            var results = {};
+
+            try {
+                const digests=JSON.parse(process.env.DIGESTS);
+                const metadata=JSON.parse(process.env.DOCKER_METADATA_OUTPUT_JSON);
+                const annotations=process.env.ANNOTATIONS;
+
+                // Take image from first tag
+                const image = metadata.tags[0].split(":")[0];
+
+                // Create local manifest name
+                const manifest = `${image.split("/").slice(-1)}:manifest`;
+
+                // Create exec.exec options
+                const options = {};
+                options.listeners = {
+                stderr: function(data) {
+                    core.info(data);
+                },
+                    stdout: function(data) {
+                    core.debug(data);
+                }
+                };
+
+                
+                // Manifest create
+                core.startGroup(`Creating container manifest: ${manifest}`);
+                const createCmd = `buildah manifest create ${manifest}`;
+                await exec.exec(createCmd,[],options);
+                core.endGroup();
+
+                // Manifest add
+                for (const [key,platform] of Object.entries(digests)) {
+                    core.startGroup(`Adding container: ${image}@${platform.digest} (${key})`);
+                    const addCmd = `buildah manifest add --all ${manifest} docker://${image}@${platform.digest}`;
+                    var params = [];  
+                    annotations.split(/\r?\n/).reduce((result,annotation) => { result.push('--annotation',annotation); return result; },params);
+                    await exec.exec(addCmd, params ,options);
+                    core.endGroup();
+                };
+
+                // Manifest push
+                for (const tag of metadata.tags.reverse()) {
+                    core.startGroup(`Pushing as container: ${tag}`);
+                    const pushCmd = `buildah manifest push --all ${manifest} docker://${tag}`;
+                    await exec.exec(pushCmd,[],options);
+                    core.endGroup();
+                };
+
+                // Manifest remove
+                core.startGroup(`Removing container manifest: ${manifest}`);
+                const rmCmd = `buildah manifest rm ${manifest}` ;
+                await exec.exec(rmCmd,[],options);
+                core.endGroup();
+                
+                // Set Image Output
+                core.setOutput('image',metadata.tags[0]);
+
+            }
+            catch(err) {
+                core.setFailed(`Action failed with error ${err}`);
+            }
+            return results;
+
+  build-artifact:
+    runs-on: ubuntu-latest
+
+    if: ${{ contains(fromJSON('["pull_request","pull_request_target"]'),github.event_name) }}
+
+    needs:
+      - context
+
+    permissions:
+      contents: read
+
+    outputs:
+      image: ${{ needs.context.outputs.container }}:${{ github.ref_name }}
+      artifact: image.${{ needs.context.outputs.container }}.tar
+
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          sparse-checkout: |
+            ${{ inputs.path }}
+          fetch-depth: 0
+      - uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
+      - uses: docker/metadata-action@818d4b7b91585d195f67373fd9cb0332e31a7175 # v4.6.0
+        id: metadata
+        with:
+          images: |
+            ${{ needs.context.outputs.container }}
+          labels: |
+            ${{ needs.context.outputs.labels }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+      - uses: docker/setup-buildx-action@4c0219f9ac95b02789c1075625400b2acbff50b1 # v2.9.1
+      - uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
+        with:
+          context: ${{ inputs.path }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          outputs: type=docker,dest=/tmp/image.${{ needs.context.outputs.container }}.tar
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: image.${{ needs.context.outputs.container }}.tar
+          path: /tmp/image.${{ needs.context.outputs.container }}.tar
+
+  scan-repository:
+    needs:
+      - context
+      - manifest
+
+    uses: ./.github/workflows/container-security-scan.yaml
+
+    permissions:
+      contents: read
+      security-events: write
+
+    with:
+      image: ${{ needs.manifest.outputs.image }}
+
+  scan-artifact:
+    needs:
+      - context
+      - build-artifact
+
+    uses: ./.github/workflows/container-security-scan.yaml
+
+    permissions:
+      contents: read
+      security-events: write
+
+    with:
+      image: ${{ needs.build-artifact.outputs.image }}
+      artifact: ${{ needs.build-artifact.outputs.image }}

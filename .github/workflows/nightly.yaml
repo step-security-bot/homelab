@@ -41,3 +41,44 @@ jobs:
       actions: read
       contents: read
       security-events: write
+
+  containers:
+    uses: ./.github/workflows/container-list.yaml
+    permissions:
+      contents: read
+    with:
+      changed: false
+
+  container-security-scan:
+    needs:
+      - containers
+
+    if: ${{ needs.containers.outputs.list != '[]' }}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        container: ${{ fromJson(needs.containers.outputs.list) }}
+
+    uses: ./.github/workflows/container-security-scan.yaml
+
+    permissions:
+      contents: read
+      security-events: write
+
+    with:
+      image: ghcr.io/remkomolier/${{ matrix.container }}:edge
+
+  housekeeping:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: Mattraks/delete-workflow-runs@v2.0.4
+        with:
+          retain_days: 30
+          keep_minimum_runs: 6

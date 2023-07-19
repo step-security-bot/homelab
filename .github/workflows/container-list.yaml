@@ -1,0 +1,62 @@
+name: Container List
+
+on:
+  workflow_call:
+    inputs:
+      # Do we want all containers or a list of changed containers
+      changed:
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      list:
+        description: A list of containers usable by a matrix
+        value: ${{ jobs.containers.outputs.list }}
+
+permissions:
+  contents: read
+
+jobs:
+  containers:
+    runs-on: ubuntu-latest
+
+    outputs:
+      list: ${{ inputs.changed && steps.changed.outputs.changes || steps.all.outputs.result }}
+
+    steps:
+      - uses: step-security/harden-runner@55d479fb1c5bcad5a4f9099a5d9f37c8857b2845 # v2.4.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - id: filters
+        if: ${{ inputs.changed }}
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          result-encoding: string
+          script: |
+            const globber = await glob.create('containers/*/Dockerfile');
+            var output = "";
+            for await (const file of globber.globGenerator()) {
+              var dirParts = file.split('/').slice(0,-1);
+              output += `${dirParts.slice(-1)}:
+                - '${dirParts.slice(-2).join('/')}/**'`;
+            }  
+            return output
+
+      - id: changed
+        if: ${{ inputs.changed }}
+        uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2.11.1
+        with:
+          filters: ${{ steps.filters.outputs.result }}
+      - id: all
+        if: ${{ !inputs.changed }}
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          result-encoding: json
+          script: |
+            const globber = await glob.create('containers/*/Dockerfile');
+            var list = [];      
+            for await (const file of globber.globGenerator()) {
+              list.push(file.split('/').at(-2));
+            }  
+            return list;

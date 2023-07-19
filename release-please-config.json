@@ -4,7 +4,6 @@
   "sequential-calls": true,
 
   "packages": {
-    ".": {},
     "containers/dhcpd": {
       "component": "dhcpd"
     }
