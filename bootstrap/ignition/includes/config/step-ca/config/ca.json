@@ -1,0 +1,60 @@
+{
+  "root": "/home/step/certs/root_ca.crt",
+  "federatedRoots": null,
+  "crt": "/home/step/certs/intermediate_ca.crt",
+  "key": "/home/step/secrets/intermediate_ca_key",
+  "address": ":443",
+  "insecureAddress": "",
+  "dnsNames": ["ca.home.molier.net", "ca.molier.net", "127.0.0.1"],
+  "logger": {
+    "format": "text"
+  },
+  "db": {
+    "type": "badgerv2",
+    "dataSource": "/home/step/db",
+    "badgerFileLoadingMode": ""
+  },
+  "authority": {
+    "provisioners": [
+      {
+        "type": "JWK",
+        "name": "ca@molier.net",
+        "key": {
+          "use": "sig",
+          "kty": "EC",
+          "kid": "E7YQvwwkAMSx1H0ITx7Ae7MvD5pjcZEHL_dARqvL2UM",
+          "crv": "P-256",
+          "alg": "ES256",
+          "x": "sjj8DHhqjJ-anTxjCTKYm1PZr21FQ8W_M4iEUTuTZtE",
+          "y": "i622Erc3PaIwHumxpmymlbQa2nz-2yKvAaQrAhV9TRo"
+        },
+        "encryptedKey": "eyJhbGciOiJQQkVTMi1IUzI1NitBMTI4S1ciLCJjdHkiOiJqd2sranNvbiIsImVuYyI6IkEyNTZHQ00iLCJwMmMiOjEwMDAwMCwicDJzIjoiN1FFZks4eTVNd1ZqVlNBTTAyQXVJQSJ9.4bTBTDzFOoM-CGx7ThOMIFOBfvfjflmZJ5IFRs5ltOaYUrGFZqzM0w.NXPVHfVeQjnYs_Qp.YyTtWEQHfFEvdvN4_jmYloeTK8aiBKG0VPmrt5GS4L7J6NtCRmrdJTmi93LRhGgfARFTaC4SaFJEyrSjeJpdTO_FQqGwd4GWfyBPEJqYAkU19xR289u-AOMyTgxy0DgYRGIQ3vKv-n94pJcvYwr4HNiSgM_iTi4amqn3xuhCsNqHsom0O2A1iTnEn1tSc50sjaNAXplxMFL-XCKBe_RGok9nBogHCS8NlCdkuVXClYl_c39c_DFbagFiKcYR88vmiL4U8CT6ggAY0CqY6T-5OfPVF4sdYrf2fxTbm1rUg-moYeHBkbqX3A5VIwKdM_MTGBtL0QfPBvgcPCgscJw.9LnvHBIHj-DzpPEKJUDsUQ"
+      },
+      {
+        "type": "ACME",
+        "name": "acme",
+        "claims": {
+          "enableSSHCA": true,
+          "disableRenewal": false,
+          "allowRenewalAfterExpiry": false
+        },
+        "options": {
+          "x509": {},
+          "ssh": {}
+        }
+      }
+    ],
+    "template": {},
+    "backdate": "1m0s"
+  },
+  "tls": {
+    "cipherSuites": [
+      "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+    ],
+    "minVersion": 1.2,
+    "maxVersion": 1.3,
+    "renegotiation": false
+  },
+  "commonName": "Step Online CA"
+}

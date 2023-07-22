@@ -1,0 +1,6 @@
+{
+  "ca-url": "https://ca.home.molier.net",
+  "ca-config": "/home/step/config/ca.json",
+  "fingerprint": "49eb7881a9200c8777c54f3d0e1097d662ba632483c1f604628c3f0a17433973",
+  "root": "/home/step/certs/root_ca.crt"
+}

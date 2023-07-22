@@ -1,0 +1,27 @@
+[Unit]
+Description=Traefik Reverse Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=traefik
+Image=docker.io/traefik:v2.10.3
+PublishPort=80:80
+PublishPort=443:443
+Network=podman
+Network=ingress.network
+Label="traefik.enable=true"
+Label="traefik.http.routers.api.rule=Host(`%H`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+Label="traefik.http.routers.api.tls.certresolver=step-ca"
+Label="traefik.http.routers.api.service=api@internal"
+Label="traefik.http.routers.api.middlewares=api-auth@docker"
+Label="traefik.http.middlewares.api-auth.basicauth.users=admin:$apr1$hzuxolj5$olqBYw2LIPFJrR7UZ8Bm3."
+Environment="LEGO_CA_CERTIFICATES=/etc/traefik/certs/root.crt"
+SecurityLabelDisable=true
+Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
+Volume=/etc/traefik:/etc/traefik:z
+PodmanArgs=--network-alias %H --network-alias portainer.%H
+
+[Install]
+WantedBy=default.target
+

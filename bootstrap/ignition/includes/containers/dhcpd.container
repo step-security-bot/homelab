@@ -1,0 +1,14 @@
+[Unit]
+Description=ISC Dynamic Host Configuration Protocol (DHCP) Server
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=dhcpd
+Image=ghcr.io/remkomolier/dhcpd:edge
+Network=host
+Volume=/etc/dhcpd:/etc/dhcpd:z
+
+[Install]
+WantedBy=default.target
+

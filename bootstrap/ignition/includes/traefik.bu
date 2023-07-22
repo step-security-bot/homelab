@@ -1,0 +1,64 @@
+variant: fcos
+version: 1.5.0
+systemd:
+  units:
+    - name: podman.socket
+      enabled: true
+storage:
+  files:
+    - path: /etc/containers/systemd/ingress.network
+      overwrite: true
+      contents:
+        local: ./includes/containers/ingress.network
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+    - path: /etc/containers/systemd/traefik.container
+      overwrite: true
+      contents:
+        local: ./includes/containers/traefik.container
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+    - path: /etc/traefik/traefik.toml
+      overwrite: true
+      contents:
+        local: ./includes/config/traefik/traefik.toml
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+    - path: /etc/traefik/certs/root.crt
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/certs/root_ca.crt
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+        
+  directories:
+    - path: /etc/traefik
+      mode: 0755
+      user: 
+        name: root
+      group:
+        name: root
+    - path: /etc/traefik/conf.d
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /etc/traefik/certs
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root

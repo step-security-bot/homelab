@@ -1,0 +1,17 @@
+{
+  "name": "empty",
+  "description": "Empty box (for PXE)",
+  "versions": [
+    {
+      "version": "0",
+      "providers": [
+        {
+          "name": "libvirt",
+          "url": "empty-libvirt.box",
+          "checksum_type": "none",
+          "checksum": "foo"
+        }
+      ]
+    }
+  ]
+}

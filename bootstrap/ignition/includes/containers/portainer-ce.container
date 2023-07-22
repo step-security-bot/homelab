@@ -1,0 +1,21 @@
+[Unit]
+Description=Portainer CE
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=portainer-ce
+Image=docker.io/portainer/portainer-ce:2.18.4
+Network=ingress.network
+Label="traefik.enable=true"
+Label="traefik.http.routers.portainer-ce.rule=Host(`portainer.%H`)"
+Label="traefik.http.routers.portainer-ce.tls.certresolver=step-ca"
+Label="traefik.http.routers.portainer-ce.service=portainer-ce"
+Label="traefik.http.services.portainer-ce.loadbalancer.server.port=9000"
+SecurityLabelDisable=true
+Volume=/run/podman/podman.sock:/var/run/docker.sock:rw
+Volume=portainer-ce.volume:/data
+
+[Install]
+WantedBy=default.target
+

@@ -1,0 +1,15 @@
+[Unit]
+Description=Watchtower
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=watchtower
+Image=docker.io/containrrr/watchtower:1.5.3
+Network=ingress.network
+SecurityLabelDisable=true
+Volume=/run/podman/podman.sock:/var/run/docker.sock:rw
+
+[Install]
+WantedBy=default.target
+

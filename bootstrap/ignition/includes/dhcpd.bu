@@ -1,0 +1,31 @@
+variant: fcos
+version: 1.5.0
+storage:
+  files:
+    - path: /etc/containers/systemd/dhcpd.container
+      overwrite: true
+      contents:
+        local: ./includes/containers/dhcpd.container
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+    - path: /etc/dhcp/dhcpd.conf
+      overwrite: true
+      contents:
+        local: ./includes/config/dhcpd/dhcpd.conf
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+        
+  directories:
+    - path: /etc/dhcp
+      mode: 0755
+      user: 
+        name: root
+      group:
+        name: root
+    

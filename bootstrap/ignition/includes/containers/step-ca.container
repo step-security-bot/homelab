@@ -1,0 +1,22 @@
+[Unit]
+Description=Step CA ACME Server
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=step-ca
+Image=docker.io/smallstep/step-ca:0.24.2
+Network=ingress.network
+User=step
+Volume=/home/step:/home/step:z
+Label="traefik.enable=true"
+Label="traefik.tcp.routers.step-ca.rule=HostSNI(`ca.home.molier.net`)"
+Label="traefik.tcp.routers.step-ca.entrypoints=websecure"
+Label="traefik.tcp.routers.step-ca.tls.passthrough=true"
+Label="traefik.tcp.routers.step-ca.service=step-ca"
+Label="traefik.tcp.services.step-ca.loadbalancer.server.port=443"
+PodmanArgs=--hostname ca.molier.net --network-alias ca.home.molier.net --no-hosts
+
+[Install]
+WantedBy=default.target
+

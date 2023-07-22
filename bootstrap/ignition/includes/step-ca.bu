@@ -1,0 +1,119 @@
+variant: fcos
+version: 1.5.0
+storage:
+  files:
+    - path: /etc/containers/systemd/step-ca.container
+      overwrite: true
+      contents:
+        local: ./includes/containers/step-ca.container
+      mode: 0644
+      user: 
+        name: root
+      group:
+        name: root
+    - path: /home/step/certs/intermediate_ca.crt
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/certs/intermediate_ca.crt
+      mode: 0600
+      user:
+        name: step
+      group:
+        name: step 
+    - path: /home/step/certs/root_ca.crt
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/certs/root_ca.crt
+      mode: 0600
+      user:
+        name: step
+      group:
+        name: step 
+    - path: /home/step/config/ca.json
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/config/ca.json
+      mode: 0644
+      user:
+        name: step
+      group:
+        name: step
+    - path: /home/step/config/defaults.json
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/config/defaults.json
+      mode: 0644
+      user:
+        name: step
+      group:
+        name: step  
+    - path: /home/step/secrets/intermediate_ca_key
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/secrets/intermediate_ca_key
+      mode: 0600
+      user:
+        name: step
+      group:
+        name: step
+    - path: /home/step/secrets/root_ca_key
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/secrets/root_ca_key
+      mode: 0600
+      user:
+        name: step
+      group:
+        name: step
+    - path: /home/step/secrets/password
+      overwrite: true
+      contents:
+        local: ./includes/config/step-ca/secrets/password
+      mode: 0600
+      user:
+        name: step
+      group:
+        name: step  
+  directories:
+    - path: /home/step
+      mode: 0755
+      user: 
+        name: step
+      group:
+        name: step
+    - path: /home/step/certs
+      mode: 0755
+      user: 
+        name: step
+      group:
+        name: step
+    - path: /home/step/config
+      mode: 0600
+      user: 
+        name: step
+      group:
+        name: step
+    - path: /home/step/db
+      mode: 0600
+      user: 
+        name: step
+      group:
+        name: step
+    - path: /home/step/secrets
+      mode: 0600
+      user: 
+        name: step
+      group:
+        name: step
+    - path: /home/step/templates
+      mode: 0600
+      user: 
+        name: step
+      group:
+        name: step
+passwd:
+  users:
+    - name: step
+      home_dir: /home/step
+      shell: /sbin/nologin
+      system: true
