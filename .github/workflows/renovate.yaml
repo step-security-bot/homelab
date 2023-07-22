@@ -12,6 +12,8 @@ on:
         required: true
       BOT_PRIVATE_KEY:
         required: true
+  schedule:
+    - cron: 0/15 * * * *
 
 permissions:
   contents: read
